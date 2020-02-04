@@ -55,8 +55,11 @@ def SGD(X_tilde, ytr, batch_size, epochs, epsilon, alpha):
 
     # randomize training set     
     permute = np.random.permutation(X_tilde.shape[1]) # this should be 5000
-    shuffled_X  = X_tilde.T[permute].T #(2305, 4000)
-    shuffled_y = ytr[permute] #(4000)
+    shuffled_X  = X_tilde.T[permute].T #(55000,784)
+    shuffled_y = ytr.T[permute].T #(10,55000)
+
+    print(shuffled_X.shape)
+    print(shuffled_y.shape)
 
     # Xtilde (2305,4000)
     sample_size = X_tilde.shape[1] # total batch size
@@ -71,8 +74,7 @@ def SGD(X_tilde, ytr, batch_size, epochs, epsilon, alpha):
     for epoch in range(epochs):
         for indexes in rounds:
             start, finish = indexes
-            # gradient =  grad_MSE(weights, shuffled_X[:,start:finish], shuffled_y[start:finish], alpha)
-            gradient =  grad_CE(weights, shuffled_X[:,start:finish], shuffled_y[start:finish], alpha)
+            gradient =  grad_CE(weights, shuffled_X[:,start:finish], shuffled_y[:,start:finish], alpha)
             weights = weights - epsilon * gradient
     return weights
 
@@ -80,9 +82,8 @@ def SGD(X_tilde, ytr, batch_size, epochs, epsilon, alpha):
 # Calculate 
 def softmax(weights, Xtilde):
     z = np.dot(Xtilde.T, weights) # (55000x10)
-    yhat = np.exp(z) / np.sum(np.exp(z), axis=1) # axis=1 means sum columns (55000)
-    print(f"Yhat shape is ({yhat.shape}) and its supposed to be (55000)") #  8888888888888888888888888888***************************************
-    return yhat # (55000)
+    yhat = np.exp(z) / np.sum(np.exp(z), axis=0) # axis=0 means sum rows (55000)
+    return yhat # (55000,10)
 
 # Calculate the gradient of cross entropy loss
 def grad_CE(weights, Xtilde, y, alpha):
@@ -93,34 +94,30 @@ def grad_CE(weights, Xtilde, y, alpha):
     # This version, simply modifies the last index of the weight array and coverts it into 0
     # this is done to not penalize the bias. This code is an alternative to the identity matrix method performed bellow
     # TODO: MAKE WREG LAST INDEX ALL 0s ***************************************************************************************************
-    wReg = np.copy(weight)
+    wReg = np.copy(weights)
     # wReg[-1] = 0
     regularization = (alpha / n) * wReg #(2305,)
     # identity_matrix =np.diag( np.append(np.ones(Xtilde.shape[0]-1), 0)) ## <-- dimension is 2305 x 2305 where last element must be 0 which means the bias is not included 
     # regularization = alpha / n * (np.transpose(weights).dot(identity_matrix))
 
-    gradient = 1/n * np.dot(Xtilde,distance) + regularization
+    gradient = 1/n * np.dot(Xtilde,distance.T) + regularization
     return gradient
 
 # Calculate Cross Entropy without regularization 
-def CE():
+def CE(yhat, y):
 
     pass
 
 # Percent of correctly classified images
-def PC (w, X_tilde, y):
-    yhat = np.dot(X_tilde.T, w)
-    coeff = 1 / (2 * X_tilde.shape[1])
-    sum = np.sum((yhat - y)**2)
-    mse = coeff * sum
-    return mse
+def PC (yhat, y):
+    pass
 
 
 
 def train_number_classifier ():
     # Load data
     X_tr = np.load("mnist_train_images.npy").T  # (784, 55000)
-    y_tr = np.load("mnist_train_labels.npy") # (55000, 10)
+    y_tr = np.load("mnist_train_labels.npy").T # (10, 55000)
 
     X_val = np.load("mnist_validation_images.npy") # (5000, 784)
     y_val = np.load("mnist_validation_labels.npy") # (5000, 10)
@@ -128,14 +125,13 @@ def train_number_classifier ():
     X_te = np.load("mnist_test_images.npy")
     y_te = np.load("mnist_test_labels.npy")
 
-    print(X_te.shape) # (10000, 784)
-    print(y_te.shape) # (10000, 10)
+    print(X_tr.shape) # (10000, 784)
+    print(y_tr.shape) # (10000, 10)
 
     # TODO APPENDS BIAAAAAAAAAAAAAAAAAAAS ************************************************************************************************
     # # append bias
     # Xtilde = append_bias(X_tr)
     # X_te = append_bias(X_te)
-
 
     # Hyper parameters 
     mini_batch_sizes = [100, 500, 1000, 2000] # mini batch sizes
@@ -145,10 +141,9 @@ def train_number_classifier ():
     alphas = [0.1, 0.01, 0.05, 0.001] # regularization alpha
 
     # key: [int] mse
-    # value: tuple of hyperparameters (nTilde, epoch, epsilon, alpha, weights)
+    # value: tuple of hyperparameters (nTilde, epoch, epsilon, alpha, weights, pcVal)
     # Dictionary to store our all the different hyperparameter sets, their weights and their MSE
     hyper_param_grid = {}
-
     count = 0
 
     # train weights based on all the different sets of hyperparameters
@@ -156,35 +151,43 @@ def train_number_classifier ():
         for epoch in epochs:
             for epsilon in epsilons:
                 for alpha in alphas:
-                        weights = SGD(Xtr_tilde, y_tr, mini_batch_size, epoch, epsilon, alpha)
-                        
-                        # calculate the mse with the validation set
-                        # ceVal = CE(yhat) ************************************
-                        # mseVal = CE(weights, X_val, Y_val)
+                        weights = SGD(X_tr, y_tr, mini_batch_size, epoch, epsilon, alpha)
+                        yhat = softmax(weights, Xtr_tilde)
+
+                        # calculate the CE and PC with the validation set
+                        ceVal = CE(yhat, y)
+                        pcVal = PC(yhat, y)
+
                         count += 1
-                        print("The MSE for [" + str(count) + "] training set is " + str(mseVal))
+                        print("The CE for [" + str(count) + "] validation set is " + str(ceVal))
+                        print("The PC for [" + str(count) + "] validation set is " + str(ceVal) + "\% correct")
 
                         # add to dictionary
-                        hyper_param_grid[mseVal] = (mini_batch_size, epoch, epsilon, alpha, np.copy(weights))
+                        hyper_param_grid[ceVal] = (mini_batch_size, epoch, epsilon, alpha, np.copy(weights), pcVal) 
                         print("miniBatch: {}, epoch: {}, epsilon: {}, alpha: {}".format(mini_batch_size,epoch,epsilon,alpha))
 
 
-    # # get key of dictionary with smallest MSE
-    # smallMSE = min(hyper_param_grid.keys())
+    # get key of dictionary with smallest MSE
+    smallCE = min(hyper_param_grid.keys())
 
-    # # Report fMSE cost on the training
+    # # Report CE cost on the training
     # # print("--------------------------------------------------------")
-    # print("The MSE for training set is " + str(smallMSE))
+    print("The CE for training set is " + str(smallCE))
+    print("The PC for training set is " + str(hyper_param_grid[smallCE][5]) + "\% correct")
     # print("--------------------------------------------------------")
 
-    # # show the best hyperparameters
-    # print("My best hyperparameters were: ")
-    # print("Mini Batch Size: {}, epoch: {}, epsilon: {}, alpha: {}".format(hyper_param_grid[smallMSE][0], hyper_param_grid[smallMSE][1], hyper_param_grid[smallMSE][2], hyper_param_grid[smallMSE][3]))
+    # show the best hyperparameters
+    print("My best hyperparameters were: ")
+    print("Mini Batch Size: {}, epoch: {}, epsilon: {}, alpha: {}".format(hyper_param_grid[smallCE][0], hyper_param_grid[smallCE][1], hyper_param_grid[smallCE][2], hyper_param_grid[smallCE][3]))
     # print("--------------------------------------------------------")
 
-    # # Report fMSE cost on the training
-    # fmse_te = mse(hyper_param_grid[smallMSE][4], X_te, yte)
-    # print("The MSE for testing set is " + str(fmse_te))
+    # # Report CE cost on the training
+
+    best_yhat = softmax(hyper_param_grid[smallMSE][4], X_te)
+    ce_te = CE(best_yhat, y_te)
+    pc_te = PC(best_yhat, y_te)
+    print("The CE for test set is " + str(ce_te))
+    print("The PC for test set is " + str(pc_te) + "\% correct")
 
 
 def main():
