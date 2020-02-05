@@ -26,21 +26,17 @@ def get_indexes(n, batchSize):
 def SGD(X_tilde, ytr, batch_size, epochs, epsilon, alpha):
 
     # randomize training set     
-    permute = np.random.permutation(X_tilde.shape[1]) # this should be 5000
-    shuffled_X  = X_tilde.T[permute].T #(55000,784)
+    permute = np.random.permutation(X_tilde.shape[1])
+    shuffled_X  = X_tilde.T[permute].T #(784, 55000)
     shuffled_y = ytr.T[permute].T #(10,55000)
 
-    # print(shuffled_X.shape)
-    # print(shuffled_y.shape)
-
-    # Xtilde (2305,4000)
     sample_size = X_tilde.shape[1] # total batch size
 
     # get all indexes based on batch size
     rounds = get_indexes(sample_size, batch_size) # list of (start,end) for slicing each batch X
 
     # initialize weights to random values with an standard deviation of 0.01
-    weights = np.random.rand(785,10) * 0.01 # (784, 10)
+    weights = np.random.rand(785,10) * 0.01 
 
     # start iteration loop
     for epoch in range(epochs):
@@ -65,62 +61,40 @@ def grad_CE(weights, Xtilde, y, alpha):
 
     # This version, simply modifies the last index of the weight array and coverts it into 0
     # this is done to not penalize the bias. This code is an alternative to the identity matrix method performed bellow
-    # TODO: MAKE WREG LAST INDEX ALL 0s ***************************************************************************************************
-    wReg = np.copy(weights)
+    # wReg = np.copy(weights)
     # wReg[-1] = 0
-    regularization = (alpha / n) * wReg #(2305,)
-    # identity_matrix =np.diag( np.append(np.ones(Xtilde.shape[0]-1), 0)) ## <-- dimension is 2305 x 2305 where last element must be 0 which means the bias is not included 
-    # regularization = alpha / n * (np.transpose(weights).dot(identity_matrix))
+    # regularization = (alpha / n) * wReg #(2305,)
+    identity_matrix =np.diag( np.append(np.ones(Xtilde.shape[0]-1), 0)) ## <-- dimension is 2305 x 2305 where last element must be 0 which means the bias is not included 
+    # print(f"identity matrix shape {identity_matrix.shape}")
+    regularization = alpha / n * (np.transpose(weights).dot(identity_matrix))
 
-    gradient = 1/n * np.dot(Xtilde,distance.T) + regularization
+    gradient = 1/n * np.dot(Xtilde,distance.T) + regularization.T
     return gradient
 
 # Calculate Cross Entropy without regularization 
 def CE(yhat, y):
-    # todo check more that everthing works fine
     # vectorize formula
     ce = y * np.log(yhat) # (10,5000)
-    # print("ce")
-    # print(ce.shape)
     verticalSum = np.sum(ce, axis=0) # (5000)
-    # print("vertical sum")
-    # print(verticalSum.shape)
     celoss = np.mean(verticalSum) * -1
     return celoss
 
 # Percent of correctly classified images
 def PC (yhat, y):
     # https://stackoverflow.com/questions/20295046/numpy-change-max-in-each-row-to-1-all-other-numbers-to-0
-    # print(yhat[:,:3])
-    yhatBool = (yhat.T == yhat.T.max(axis=1)[:, None]).astype(int).T # make probabilities into 1 and 0s
-
-    # testing
-    # print("yhatBool")
-    # print(yhatBool[:,:10])
-    # #
-    # print("y")
-    # print(y[:,:10])
-
-    numOfClasses = y.shape[0]
-    similar = np.equal(y,yhatBool)
-    # print("similar")
-    # print(similar[:,:10])
+    yhat_bool = (yhat.T == yhat.T.max(axis=1)[:, None]).astype(int).T # make probabilities into 1 and 0s
+    num_of_classes = y.shape[0]
+    similar = np.equal(y,yhat_bool)
     sum = np.sum(similar, axis=0)
-    # print("sum")
-    # print(sum[:10])
     ones = np.ones(sum.shape[0])
-    divideByClasses = sum / numOfClasses
-    # print(sum.shape[0])
-    # print("divideByClasses")
-    # print(divideByClasses[:10])
-    correctness = np.equal(divideByClasses, ones)
+    divide_by_classes = sum / num_of_classes
+    correctness = np.equal(divide_by_classes, ones)
     accuracy = np.mean(correctness)
     return accuracy
 
 
-
 def train_number_classifier ():
-    # Load data
+    # Load data and append bias
     X_tr = append_bias(np.load("mnist_train_images.npy").T)  # (784, 55000)
     y_tr = np.load("mnist_train_labels.npy").T # (10, 55000)
     X_val = append_bias(np.load("mnist_validation_images.npy").T) # (784, 5000)
@@ -128,27 +102,11 @@ def train_number_classifier ():
     X_te = append_bias(np.load("mnist_test_images.npy").T)
     y_te = np.load("mnist_test_labels.npy").T
 
-
-    # TODO APPENDS BIAAAAAAAAAAAAAAAAAAAS ************************************************************************************************
-    # # append bias
-    # Xtilde = append_bias(X_tr)
-    # X_te = append_bias(X_te)
-
     # Hyper parameters 
     mini_batch_sizes = [100, 500, 1000, 2000] # mini batch sizes
     epochs = [1, 2,3,4] # number of epochs
     epsilons = [0.1, 3e-3, 1e-3, 3e-5] # learning rates
     alphas = [0.1, 0.01, 0.05, 0.001] # regularization alpha
-
-    # mini_batch_sizes = [50, 100] # mini batch sizes
-    # epochs = [1, 2] # number of epochs
-    # epsilons = [0.1, 3e-3, 1e-3, 3e-5] # learning rates
-    # alphas = [0.1, 0.01, 0.05, 0.001] # regularization alpha
-
-    # mini_batch_sizes = [50] # mini batch sizes
-    # epochs = [2] # number of epochs
-    # epsilons = [0.1, 3e-3, 1e-3] # learning rates
-    # alphas = [0.1, 0.01, 0.001] # regularization alpha
 
     # key: [int] mse
     # value: tuple of hyperparameters (nTilde, epoch, epsilon, alpha, weights, pcVal)
@@ -192,7 +150,6 @@ def train_number_classifier ():
     # print("--------------------------------------------------------")
 
     # # Report CE cost on the training
-
     best_yhat = softmax(hyper_param_grid[smallCE][4], X_te)
     ce_te = CE(best_yhat, y_te)
     pc_te = PC(best_yhat, y_te)
