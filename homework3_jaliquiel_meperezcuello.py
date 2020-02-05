@@ -23,34 +23,6 @@ def get_indexes(n, batchSize):
     return indexes
 
 
-# # Given a vector of weights w, a design matrix Xtilde, and a vector of labels y, and a regularization strength
-# # alpha (default value of 0), return the gradient of the (regularized) MSE loss.
-# def grad_MSE(weight, Xtilde, y,alpha):
-#     n = y.shape[0]
-#     yhat = np.dot(Xtilde.T,weight)
-#     distance = yhat - y #(5000)
-#     coeff = 1 / n
-
-#     # This version, simply modifies the last index of the weight array and coverts it into 0
-#     # this is done to not penalize the bias. This code is an alternative to the identity matrix method performed bellow
-#     # wReg = np.copy(weight)
-#     # wReg[-1] = 0
-#     # regularization = (alpha / n) * wReg #(2305,)
-
-#     identity_matrix =np.diag( np.append(np.ones(Xtilde.shape[0]-1), 0)) ## <-- dimension is 2305 x 2305 where last element must be 0 which means the bias is not included 
-#     regularization = alpha / n * (np.transpose(weight).dot(identity_matrix))
-
-#     gradient =  (1/n) * np.dot(Xtilde,distance) + regularization
-
-#     return gradient 
-
-# def mse (w, X_tilde, y):
-#     yhat = np.dot(X_tilde.T, w)
-#     coeff = 1 / (2 * X_tilde.shape[1])
-#     sum = np.sum((yhat - y)**2)
-#     mse = coeff * sum
-#     return mse
-
 def SGD(X_tilde, ytr, batch_size, epochs, epsilon, alpha):
 
     # randomize training set     
@@ -58,8 +30,8 @@ def SGD(X_tilde, ytr, batch_size, epochs, epsilon, alpha):
     shuffled_X  = X_tilde.T[permute].T #(55000,784)
     shuffled_y = ytr.T[permute].T #(10,55000)
 
-    print(shuffled_X.shape)
-    print(shuffled_y.shape)
+    # print(shuffled_X.shape)
+    # print(shuffled_y.shape)
 
     # Xtilde (2305,4000)
     sample_size = X_tilde.shape[1] # total batch size
@@ -68,7 +40,7 @@ def SGD(X_tilde, ytr, batch_size, epochs, epsilon, alpha):
     rounds = get_indexes(sample_size, batch_size) # list of (start,end) for slicing each batch X
 
     # initialize weights to random values with an standard deviation of 0.01
-    weights = np.random.rand(7840).reshape(784,10) * 0.01 # (784, 10)
+    weights = np.random.rand(785,10) * 0.01 # (784, 10)
 
     # start iteration loop
     for epoch in range(epochs):
@@ -81,13 +53,13 @@ def SGD(X_tilde, ytr, batch_size, epochs, epsilon, alpha):
 
 # Calculate 
 def softmax(weights, Xtilde):
-    z = np.dot(Xtilde.T, weights) # (55000x10)
+    z = np.dot(weights.T, Xtilde) # (55000x10)
     yhat = np.exp(z) / np.sum(np.exp(z), axis=0) # axis=0 means sum rows (55000)
-    return yhat # (55000,10)
+    return yhat # (10,55000)
 
 # Calculate the gradient of cross entropy loss
 def grad_CE(weights, Xtilde, y, alpha):
-    yhat = softmax(Xtilde,weights)
+    yhat = softmax(weights,Xtilde)
     distance = yhat - y
     n = y.shape[0] # 55000
 
@@ -105,28 +77,57 @@ def grad_CE(weights, Xtilde, y, alpha):
 
 # Calculate Cross Entropy without regularization 
 def CE(yhat, y):
-
-    pass
+    # todo check more that everthing works fine
+    # vectorize formula
+    ce = y * np.log(yhat) # (10,5000)
+    # print("ce")
+    # print(ce.shape)
+    verticalSum = np.sum(ce, axis=0) # (5000)
+    # print("vertical sum")
+    # print(verticalSum.shape)
+    celoss = np.mean(verticalSum) * -1
+    return celoss
 
 # Percent of correctly classified images
 def PC (yhat, y):
-    pass
+    # https://stackoverflow.com/questions/20295046/numpy-change-max-in-each-row-to-1-all-other-numbers-to-0
+    # print(yhat[:,:3])
+    yhatBool = (yhat.T == yhat.T.max(axis=1)[:, None]).astype(int).T # make probabilities into 1 and 0s
+
+    # testing
+    # print("yhatBool")
+    # print(yhatBool[:,:10])
+    # #
+    # print("y")
+    # print(y[:,:10])
+
+    numOfClasses = y.shape[0]
+    similar = np.equal(y,yhatBool)
+    # print("similar")
+    # print(similar[:,:10])
+    sum = np.sum(similar, axis=0)
+    # print("sum")
+    # print(sum[:10])
+    ones = np.ones(sum.shape[0])
+    divideByClasses = sum / numOfClasses
+    # print(sum.shape[0])
+    # print("divideByClasses")
+    # print(divideByClasses[:10])
+    correctness = np.equal(divideByClasses, ones)
+    accuracy = np.mean(correctness)
+    return accuracy
 
 
 
 def train_number_classifier ():
     # Load data
-    X_tr = np.load("mnist_train_images.npy").T  # (784, 55000)
+    X_tr = append_bias(np.load("mnist_train_images.npy").T)  # (784, 55000)
     y_tr = np.load("mnist_train_labels.npy").T # (10, 55000)
+    X_val = append_bias(np.load("mnist_validation_images.npy").T) # (784, 5000)
+    y_val = np.load("mnist_validation_labels.npy").T # (10, 5000)   
+    X_te = append_bias(np.load("mnist_test_images.npy").T)
+    y_te = np.load("mnist_test_labels.npy").T
 
-    X_val = np.load("mnist_validation_images.npy") # (5000, 784)
-    y_val = np.load("mnist_validation_labels.npy") # (5000, 10)
-
-    X_te = np.load("mnist_test_images.npy")
-    y_te = np.load("mnist_test_labels.npy")
-
-    print(X_tr.shape) # (10000, 784)
-    print(y_tr.shape) # (10000, 10)
 
     # TODO APPENDS BIAAAAAAAAAAAAAAAAAAAS ************************************************************************************************
     # # append bias
@@ -135,10 +136,19 @@ def train_number_classifier ():
 
     # Hyper parameters 
     mini_batch_sizes = [100, 500, 1000, 2000] # mini batch sizes
-    epochs = [1, 10, 50, 100] # number of epochs
     epochs = [1, 2,3,4] # number of epochs
     epsilons = [0.1, 3e-3, 1e-3, 3e-5] # learning rates
     alphas = [0.1, 0.01, 0.05, 0.001] # regularization alpha
+
+    # mini_batch_sizes = [50, 100] # mini batch sizes
+    # epochs = [1, 2] # number of epochs
+    # epsilons = [0.1, 3e-3, 1e-3, 3e-5] # learning rates
+    # alphas = [0.1, 0.01, 0.05, 0.001] # regularization alpha
+
+    # mini_batch_sizes = [50] # mini batch sizes
+    # epochs = [2] # number of epochs
+    # epsilons = [0.1, 3e-3, 1e-3] # learning rates
+    # alphas = [0.1, 0.01, 0.001] # regularization alpha
 
     # key: [int] mse
     # value: tuple of hyperparameters (nTilde, epoch, epsilon, alpha, weights, pcVal)
@@ -152,15 +162,15 @@ def train_number_classifier ():
             for epsilon in epsilons:
                 for alpha in alphas:
                         weights = SGD(X_tr, y_tr, mini_batch_size, epoch, epsilon, alpha)
-                        yhat = softmax(weights, Xtr_tilde)
+                        yhat = softmax(weights, X_val)
 
                         # calculate the CE and PC with the validation set
-                        ceVal = CE(yhat, y)
-                        pcVal = PC(yhat, y)
+                        ceVal = CE(yhat, y_val)
+                        pcVal = PC(yhat, y_val)
 
                         count += 1
                         print("The CE for [" + str(count) + "] validation set is " + str(ceVal))
-                        print("The PC for [" + str(count) + "] validation set is " + str(ceVal) + "\% correct")
+                        print("The PC for [" + str(count) + "] validation set is " + str(pcVal) + "correct")
 
                         # add to dictionary
                         hyper_param_grid[ceVal] = (mini_batch_size, epoch, epsilon, alpha, np.copy(weights), pcVal) 
@@ -173,7 +183,7 @@ def train_number_classifier ():
     # # Report CE cost on the training
     # # print("--------------------------------------------------------")
     print("The CE for training set is " + str(smallCE))
-    print("The PC for training set is " + str(hyper_param_grid[smallCE][5]) + "\% correct")
+    print("The PC for training set is " + str(hyper_param_grid[smallCE][5]) + " correct")
     # print("--------------------------------------------------------")
 
     # show the best hyperparameters
@@ -183,11 +193,11 @@ def train_number_classifier ():
 
     # # Report CE cost on the training
 
-    best_yhat = softmax(hyper_param_grid[smallMSE][4], X_te)
+    best_yhat = softmax(hyper_param_grid[smallCE][4], X_te)
     ce_te = CE(best_yhat, y_te)
     pc_te = PC(best_yhat, y_te)
     print("The CE for test set is " + str(ce_te))
-    print("The PC for test set is " + str(pc_te) + "\% correct")
+    print("The PC for test set is " + str(pc_te) + "% correct")
 
 
 def main():
