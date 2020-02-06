@@ -65,7 +65,6 @@ def grad_CE(weights, Xtilde, y, alpha):
     # wReg[-1] = 0
     # regularization = (alpha / n) * wReg #(2305,)
     identity_matrix =np.diag( np.append(np.ones(Xtilde.shape[0]-1), 0)) ## <-- dimension is 2305 x 2305 where last element must be 0 which means the bias is not included 
-    # print(f"identity matrix shape {identity_matrix.shape}")
     regularization = alpha / n * (np.transpose(weights).dot(identity_matrix))
 
     gradient = 1/n * np.dot(Xtilde,distance.T) + regularization.T
@@ -101,6 +100,7 @@ def train_number_classifier ():
     y_val = np.load("mnist_validation_labels.npy").T # (10, 5000)   
     X_te = append_bias(np.load("mnist_test_images.npy").T)
     y_te = np.load("mnist_test_labels.npy").T
+    
 
     # Hyper parameters 
     mini_batch_sizes = [100, 500, 1000, 2000] # mini batch sizes
