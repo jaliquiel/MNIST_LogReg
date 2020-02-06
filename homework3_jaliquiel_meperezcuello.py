@@ -49,15 +49,15 @@ def SGD(X_tilde, ytr, batch_size, epochs, epsilon, alpha):
 
 # Calculate 
 def softmax(weights, Xtilde):
-    z = np.dot(weights.T, Xtilde) # (55000x10)
-    yhat = np.exp(z) / np.sum(np.exp(z), axis=0) # axis=0 means sum rows (55000)
-    return yhat # (10,55000)
+    z = np.dot(weights.T, Xtilde) # (10,100)
+    yhat = np.exp(z) / np.sum(np.exp(z), axis=0) # axis=0 means sum rows (10)
+    return yhat 
 
 # Calculate the gradient of cross entropy loss
 def grad_CE(weights, Xtilde, y, alpha):
     yhat = softmax(weights,Xtilde)
     distance = yhat - y
-    n = y.shape[0] # 55000
+    n = y.shape[1] # 55000
 
     # This version, simply modifies the last index of the weight array and coverts it into 0
     # this is done to not penalize the bias. This code is an alternative to the identity matrix method performed bellow
@@ -78,19 +78,7 @@ def CE(yhat, y):
     celoss = np.mean(verticalSum) * -1
     return celoss
 
-# # Percent of correctly classified images
-# def PC (yhat, y):
-#     # https://stackoverflow.com/questions/20295046/numpy-change-max-in-each-row-to-1-all-other-numbers-to-0
-#     yhat_bool = (yhat.T == yhat.T.max(axis=1)[:, None]).astype(int).T # make probabilities into 1 and 0s
-#     num_of_classes = y.shape[0]
-#     similar = np.equal(y,yhat_bool)
-#     sum = np.sum(similar, axis=0)
-#     ones = np.ones(sum.shape[0])
-#     divide_by_classes = sum / num_of_classes
-#     correctness = np.equal(divide_by_classes, ones)
-#     accuracy = np.mean(correctness)
-#     return accuracy
-
+# Percent of correctly classified images
 def PC(yhat, y):
     return np.mean(np.argmax(yhat, axis = 0) == np.argmax(y, axis=0))
 
@@ -107,7 +95,7 @@ def train_number_classifier ():
 
     # Hyper parameters 
     mini_batch_sizes = [100, 500, 1000, 2000] # mini batch sizes
-    epochs = [1, 2,3,4] # number of epochs
+    epochs = [1, 2, 3, 4] # number of epochs
     epsilons = [0.1, 3e-3, 1e-3, 3e-5] # learning rates
     alphas = [0.1, 0.01, 0.05, 0.001] # regularization alpha
 
