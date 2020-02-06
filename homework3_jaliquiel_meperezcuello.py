@@ -78,18 +78,21 @@ def CE(yhat, y):
     celoss = np.mean(verticalSum) * -1
     return celoss
 
-# Percent of correctly classified images
-def PC (yhat, y):
-    # https://stackoverflow.com/questions/20295046/numpy-change-max-in-each-row-to-1-all-other-numbers-to-0
-    yhat_bool = (yhat.T == yhat.T.max(axis=1)[:, None]).astype(int).T # make probabilities into 1 and 0s
-    num_of_classes = y.shape[0]
-    similar = np.equal(y,yhat_bool)
-    sum = np.sum(similar, axis=0)
-    ones = np.ones(sum.shape[0])
-    divide_by_classes = sum / num_of_classes
-    correctness = np.equal(divide_by_classes, ones)
-    accuracy = np.mean(correctness)
-    return accuracy
+# # Percent of correctly classified images
+# def PC (yhat, y):
+#     # https://stackoverflow.com/questions/20295046/numpy-change-max-in-each-row-to-1-all-other-numbers-to-0
+#     yhat_bool = (yhat.T == yhat.T.max(axis=1)[:, None]).astype(int).T # make probabilities into 1 and 0s
+#     num_of_classes = y.shape[0]
+#     similar = np.equal(y,yhat_bool)
+#     sum = np.sum(similar, axis=0)
+#     ones = np.ones(sum.shape[0])
+#     divide_by_classes = sum / num_of_classes
+#     correctness = np.equal(divide_by_classes, ones)
+#     accuracy = np.mean(correctness)
+#     return accuracy
+
+def PC(yhat, y):
+    return np.mean(np.argmax(yhat, axis = 0) == np.argmax(y, axis=0))
 
 
 def train_number_classifier ():
@@ -128,7 +131,7 @@ def train_number_classifier ():
 
                         count += 1
                         print("The CE for [" + str(count) + "] validation set is " + str(ceVal))
-                        print("The PC for [" + str(count) + "] validation set is " + str(pcVal) + "correct")
+                        print("The PC for [" + str(count) + "] validation set is " + str(pcVal) + " correct")
 
                         # add to dictionary
                         hyper_param_grid[ceVal] = (mini_batch_size, epoch, epsilon, alpha, np.copy(weights), pcVal) 
